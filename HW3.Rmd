@@ -12,6 +12,7 @@ output: html_document
 library(tidyverse)
 library(viridis)
 library(leaflet)
+library(gridExtra)
 knitr::opts_chunk$set(
 	echo = TRUE,
 	warning = FALSE,
@@ -85,5 +86,71 @@ instacart %>%
                              "Friday",
                              "Saturday"))
 ```
+## Problem 2 
+### First, we will load the BRFSS data
+```{r} 
+devtools::install_github("p8105/p8105.datasets")
+library(p8105.datasets)
+data("brfss_smart2010")
+```
+### Now, we will will clean the data and only include responses from "Excellent" to "Poor" and arrange the responses from Poor to Excellent
+```{r} 
+brfss_smart2010 %>%
+  filter(Response %in% c("Excellent", "Very good", "Good", "Fair", "Poor")) %>% 
+  mutate(
+  Response = factor(Response, levels = c("Poor","Fair","Good","Very good","Excellent"))) %>% 
+  arrange(Response)
+```
+
+```{r}
+brfss_smart2010 %>% 
+ filter(Year == "2002") %>% 
+  group_by(Year, Locationabbr) %>% 
+  summarize(n=n()) %>% 
+  filter(n > 7)
+```
+
+```{r}
+brfss_smart2010 %>% 
+ filter(Year == "2010") %>% 
+  group_by(Year, Locationabbr) %>% 
+  summarize(n=n()) %>% 
+  filter(n > 7)
+```
+
+```{r} 
+new_brfss =
+brfss_smart2010 %>% 
+filter(Response == "Excellent") %>% 
+group_by(Year,Locationabbr) %>% 
+summarize(mean=mean(Data_value))
+```
+
+```{r} 
+new_brfss %>% 
+  ggplot(aes(y = mean, x = Year)) +
+  geom_line(aes(group=Locationabbr))
+```
+
+```{r} 
+Plot_1 = 
+brfss_smart2010 %>% 
+  filter(Year == "2006", Locationabbr == "NY") %>% 
+  filter(Response %in% c("Excellent", "Very good", "Good", "Fair", "Poor")) %>% 
+  mutate(Response = factor(Response, levels = c("Poor","Fair","Good","Very good","Excellent"))) %>%
+  arrange() %>% 
+  ggplot(aes(x = Data_value, y = Response, color = Response)) + 
+  geom_point()  
+
+Plot_2 = 
+brfss_smart2010 %>% 
+  filter(Year == "2010", Locationabbr == "NY") %>% 
+  filter(Response %in% c("Excellent", "Very good", "Good", "Fair", "Poor")) %>% 
+  mutate(Response = factor(Response, levels = c("Poor","Fair","Good","Very good","Excellent"))) %>%
+  arrange() %>% 
+  ggplot(aes(x = Data_value, y = Response, color = Response)) + 
+  geom_point()  
 
 
+grid.arrange(Plot_1, Plot_2)
+```

@@ -1,0 +1,198 @@
+---
+title: "p8105_hw3_dna2118"
+author: "Dionna Attinson"
+date: "10/10/2019"
+output: html_document
+---
+## Problem 1
+
+#### First, we will load the instacart data
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(viridis)
+library(leaflet)
+library(gridExtra)
+knitr::opts_chunk$set(
+	echo = TRUE,
+	warning = FALSE,
+	fig.width = 8, 
+  fig.height = 6,
+  out.width = "90%"
+)
+options(
+  ggplot2.continuous.colour = "viridis",
+  ggplot2.continuous.fill = "viridis"
+)
+scale_colour_discrete = scale_colour_viridis_d
+scale_fill_discrete = scale_fill_viridis_d
+theme_set(theme_minimal() + theme(legend.position = "bottom"))
+```
+
+```{r}
+library(p8105.datasets)
+data("instacart")
+```
+#### Next, we will group the data and count the number of aisles. We will then arrange the dataset to see which aisles have the most items ordered from them.
+```{r} 
+instacart %>% 
+  group_by(aisle) %>% 
+  count(aisle) %>% 
+  arrange(desc(n))
+```
+#### We have 134 isles in the dataset. The aisles that are the most items ordered from are the fresh vegetables and fresh fruits, respectively.
+
+```{r}
+instacart %>% 
+  count(aisle) %>%
+  filter (
+   n > 10000
+  ) %>%
+ ggplot(aes(y= n, x=reorder(aisle, n))) +
+ geom_bar (stat = "identity") + coord_flip() +
+ labs(
+  title = "Number of Items Ordered by Aisle",
+  x = "Number of Items Ordered",
+  y = "Aisle") 
+```
+```{r}
+```
+#### Now, we will make a table showing the three most popular items in each of the aisles “baking ingredients”, “dog food care”, and “packaged vegetables fruits”. We also included the number of times each item was ordered. We will then make a (2 x7) table showing the mean hour of the day at which Pink Lady Apples and Coffee Ice Cream are ordered on each day of the week.
+```{r}
+instacart %>% 
+  filter(aisle %in% c("baking ingredients", "dog food care", "packaged vegetables fruits")) %>%
+  group_by(aisle, product_name) %>% 
+  summarize(n=n()) %>%
+  filter(min_rank(desc(n)) <4) %>% 
+  knitr::kable(col.names = c("Aisle",
+                             "Product Name", 
+                             "Number of Orders"))
+```
+
+```{r} 
+instacart %>% 
+  filter(product_name %in% c("Pink Lady Apples", "Coffee Ice Cream")) %>%
+  group_by(product_name, order_dow) %>% 
+  summarize(mean = mean(order_hour_of_day)) %>% 
+  pivot_wider(
+   names_from = "order_dow", 
+   values_from = "mean") %>% 
+   knitr::kable(col.names = c("Product Names",
+                             "Sunday",
+                             "Monday",
+                             "Tuesday", 
+                             "Wednesday",
+                             "Thursday",
+                             "Friday",
+                             "Saturday"))
+```
+```{r}
+```
+
+## Problem 2 
+### First, we will load the BRFSS data
+```{r} 
+devtools::install_github("p8105/p8105.datasets")
+library(p8105.datasets)
+data("brfss_smart2010")
+```
+### Now, we will will clean the data and only include responses from "Excellent" to "Poor" and arrange the responses from Poor to Excellent
+```{r} 
+brfss = 
+brfss_smart2010 %>%
+  filter(Topic %in% "Overall Health") %>% 
+  filter(Response %in% c("Excellent", "Very good", "Good", "Fair", "Poor")) %>% 
+  mutate (Response = ordered(Response, c("Poor","Fair", "Good","Very good","Excellent"))) %>% 
+  mutate(
+  Response = factor(Response, levels = c("Poor","Fair","Good","Very good","Excellent"))) %>% 
+  arrange(Response)
+```
+
+```{r}
+brfss %>% 
+ filter(Year == "2002") %>% 
+  group_by(Year, Locationabbr) %>% 
+  summarize(n=n()) %>% 
+  filter(n >= 7)
+```
+
+```{r}
+brfss %>% 
+ filter(Year == "2010") %>% 
+  group_by(Year, Locationabbr) %>% 
+  summarize(n=n()) %>% 
+  filter(n >= 7)
+```
+
+```{r} 
+new_brfss =
+brfss %>% 
+filter(Response == "Excellent") %>% 
+group_by(Year,Locationabbr) %>% 
+summarize(mean=mean(Data_value))
+```
+
+```{r} 
+new_brfss %>% 
+   ggplot(aes(x = Year, y = mean, group = Locationabbr, color = Locationabbr)) + 
+   geom_line() +  
+  viridis::scale_color_viridis(
+    name = "State", 
+    discrete = TRUE, 
+    option = "viridis"
+  ) + 
+  theme_minimal() +
+  labs(
+    x = "Year",
+    y = "Mean", 
+    title = "Average value over time for each state"
+  )
+```
+
+```{r} 
+brfss %>% 
+  filter (Year %in% c("2006", "2010"), Locationabbr == "NY") %>% 
+  filter(Response %in% c("Excellent","Very good", "Good","Fair","Poor"))%>%
+  mutate (Response = ordered(Response, c("Poor","Fair", "Good","Very good","Excellent"))) %>% 
+  ggplot (aes(x = Response, y = Data_value)) + geom_violin(aes( color= Response)) +   stat_summary(fun.y= median, geom = "point", color = "red") +labs(
+  title = "Distribution of Data Values for Responses in NY 2006 and 2010",
+  x = "Response",
+  y = "Data_value") +
+facet_grid(~Year)
+```
+
+## Problem 3 
+```{r} 
+Accel_data = read_csv(file = "./Data/accel_data.csv") %>% 
+janitor::clean_names() %>% 
+mutate(
+Day_of_Week = if_else(day %in% c("Saturday","Sunday"), "Weekend", "Weekday")) %>% 
+
+pivot_longer(
+activity_1:activity_1440,
+names_to = "Minute",
+names_prefix = "activity_",
+values_to = "Activity") %>%
+mutate( week= as.integer(week),
+day_id= as.integer(day_id),
+day= as.character(day),
+Day_of_Week=as.character(Day_of_Week),
+Activity=as.numeric(Activity),
+Minute=as.numeric(Minute))
+```
+
+```{r}
+Accel_data %>% 
+group_by(week, day) %>% 
+summarise (total_activity = sum(Activity)) %>%
+knitr::kable(col.names= c("Week", "Day of the Week", "Total Activities"))
+```
+
+```{r}
+Accel_data %>%
+mutate(
+hour = Minute %/% 60) %>% 
+group_by(day, hour) %>% 
+summarise (total_activity = sum(Activity)) %>% 
+ggplot(aes(x=hour, y=total_activity)) + geom_line(aes(color=day))
+```
